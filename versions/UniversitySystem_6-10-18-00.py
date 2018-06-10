@@ -22,7 +22,6 @@ Wrong_Password = "密码错误"
 Confirm = "确认"
 Cancel = "取消"
 Add_New_University = "添加学校"
-Search_Keyword = "搜索关键词"
 Class_Science = "理科"
 Class_Art = "文科"
 Type_All = "全选"
@@ -40,8 +39,7 @@ Uni_Types = "类别"
 Uni_Details = "详情"
 Uni_Plans = "招生计划"
 Table_Header = ["序号", "排名", "大学", "代码", "类别"]
-#Table_Header_Size = [4, 5, 18, 5, 22, 5, 5, 8, 5, 5, 8, 5, 5, 8, 5, 5, 8]
-Table_Header_Size = [30, 40, 130, 40, 155, 45, 45, 60, 45, 45, 60, 45, 45, 60, 45, 45, 60]
+Table_Header_Size = [4, 5, 18, 5, 22, 5, 5, 8, 5, 5, 8, 5, 5, 8, 5, 5, 8]
 Table_Pre_Batch = "提前批"
 Table_First_Batch = "第一批"
 Table_Accumulate = "累计"
@@ -350,7 +348,7 @@ class UniSystem(Tk.Frame):
         self.uni_page = Tk.Frame(self.parent, bd=2, relief=Tk.RIDGE)
         self.uni_page.pack(side=Tk.LEFT, fill=Tk.Y, ipadx=20, ipady=20)
         self.display_page = Tk.Frame(self.parent)
-        self.display_page.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True, padx=10, pady=20)
+        self.display_page.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True, padx=20, pady=20)
 
         # uni_page = uni_content + management page
         self.uni_content = Tk.Frame(self.uni_page)
@@ -384,19 +382,11 @@ class UniSystem(Tk.Frame):
         self.uni_add_button.pack(pady=20)
 
         # -------------------------------------
-        # display page = search + filters + table
-        self.search_frame = Tk.Frame(self.display_page)
-        self.search_frame.pack(side=Tk.TOP, fill=Tk.X)
+        # display page = filters + table
         self.display_filters = Tk.Frame(self.display_page)
         self.display_filters.pack(side=Tk.TOP, fill=Tk.X)
         self.display_table = Tk.Frame(self.display_page, bd=1, relief=Tk.RIDGE)
         self.display_table.pack(side=Tk.TOP, fill=Tk.BOTH, expand=True)
-
-        # search frame
-        self.search_label = Tk.Label(self.search_frame, text=Search_Keyword)
-        self.search_label.pack(side=Tk.LEFT, padx=(25, 0))
-        self.search_entry = Tk.Entry(self.search_frame)
-        self.search_entry.pack(side=Tk.LEFT, fill=Tk.X, expand=True, padx=(20, 40))
 
         # display filters: two class and 4 types + refresh button
         self.filter_content = Tk.Frame(self.display_filters)
@@ -465,30 +455,53 @@ class UniSystem(Tk.Frame):
         self.type_others_checkButton.pack(side=Tk.LEFT, padx=10, pady=(2, 10))
 
         # display table
+        #self.table_canvas = Tk.Canvas(self.display_table)
+        #self.table_canvas.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
         self.current_year = date.today().year
         self.headers = [Table_Header[0], Table_Header[1], Table_Header[2], Table_Header[3], Table_Header[4],
                         Table_Pre_Batch, Table_First_Batch, str(self.current_year-3) + Table_Accumulate,
                         Table_Pre_Batch, Table_First_Batch, str(self.current_year-2) + Table_Accumulate,
                         Table_Pre_Batch, Table_First_Batch, str(self.current_year-1) + Table_Accumulate,
                         Table_Pre_Batch, Table_First_Batch, str(self.current_year) + Table_Accumulate]
-        self.tree = ttk.Treeview(columns=range(len(self.headers)), show="headings")
-        self.tree_vsb = ttk.Scrollbar(orient="vertical", command=self.tree.yview)
-        self.tree_hsb = ttk.Scrollbar(orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=self.tree_vsb.set,
-                            xscrollcommand=self.tree_hsb.set)
+        self.tree = ttk.Treeview(columns=range(len(self.headers)), show="headings", selectmode="none")
+        #self.tree_vsb = ttk.Scrollbar(orient="vertical", command=self.tree.yview)
+        #self.tree_hsb = ttk.Scrollbar(orient="horizontal", command=self.tree.xview)
+        #self.tree.configure(yscrollcommand=self.tree_vsb.set)
+        #                    xscrollcommand=self.tree_hsb.set)
 
         self.tree.grid(column=0, row=0, sticky='nsew', in_=self.display_table)
-        self.tree_vsb.grid(column=1, row=0, sticky='ns', in_=self.display_table)
-        self.tree_hsb.grid(column=0, row=1, sticky='ew', in_=self.display_table)
+        #self.tree_vsb.grid(column=1, row=0, sticky='ns', in_=self.display_table)
+        #self.tree_hsb.grid(column=0, row=1, sticky='ew', in_=self.display_table)
 
         self.display_table.grid_columnconfigure(0, weight=1)
         self.display_table.grid_rowconfigure(0, weight=1)
 
-        self.tree.bind('<Enter>', self._bound_to_mousewheel_table)
-        self.tree.bind('<Leave>', self._unbound_to_mousewheel_table)
-        self.tree.bind('<Double-1>', self.popup_details)
+        #self.tree.bind('<Configure>', self._on_frame_configure_table)
+        self.tree.bind("<Button-1>", self.do_nothing)
+        #self.tree.bind('<Enter>', self._bound_to_mousewheel_table)
+        #self.tree.bind('<Leave>', self._unbound_to_mousewheel_table)
+        '''self.table_canvas = Tk.Canvas(self.display_table)
+        self.table_canvas.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
+        self.table_scrollbar = Tk.Scrollbar(self.display_table, command=self.table_canvas.yview)
+        self.table_scrollbar.pack(side=Tk.LEFT, fill=Tk.BOTH)
+        self.table_canvas.configure(yscrollcommand=self.table_scrollbar.set)
+
+        self.table_canvas.bind('<Configure>', self._on_frame_configure_table)
+        self.table_canvas.bind('<Enter>', self._bound_to_mousewheel_table)
+        self.table_canvas.bind('<Leave>', self._unbound_to_mousewheel_table)
+
+        self.table_list_frame = Tk.Frame(self.table_canvas)
+        self.table_list_frame.bind("<Configure>", self._reset_scrollregion_table)
+        self.table_canvas.create_window((0, 0), window=self.table_list_frame, anchor='nw')'''
 
         self.fill_table()
+
+    def do_nothing(self, event):
+        print "click table leh"
+        self.tree.unbind_all("<MouseWheel>")
+        self.display_table.unbind_all("<MouseWheel>")
+        self.tree["yscrollcommand"] = None
+
 
     def _on_frame_configure(self, event):
         self.uni_canvas.configure(scrollregion=self.uni_canvas.bbox("all"))
@@ -512,10 +525,18 @@ class UniSystem(Tk.Frame):
         self.tree.bind_all("<MouseWheel>", self._on_mouse_wheel_table)
 
     def _unbound_to_mousewheel_table(self, event):
+        #self.tree.bind_all("<MouseWheel>", self._on_mouse_wheel_table_disable)
         self.tree.unbind_all("<MouseWheel>")
+        print "I m outside ................."
 
     def _on_mouse_wheel_table(self, event):
         self.tree.yview_scroll(-1*(event.delta/120), "units")
+
+    def _on_mouse_wheel_table_disable(self, event):
+        self.tree.yview_scroll(0, "units")
+
+    def _reset_scrollregion_table(self, event):
+        self.tree.configure(scrollregion=self.tree)
 
     def load_universities(self):
         print "load data"
@@ -528,12 +549,14 @@ class UniSystem(Tk.Frame):
             log_dir = os.path.join(os.getcwd(), Default_Data_Dir)
 
         # load uni info
-        for f in os.listdir(log_dir):
+        for idx, f in enumerate(os.listdir(log_dir)):
             uni_obj = University()
             uni_obj.load_from_log(os.path.join(log_dir, f))
             self.university_list.append(uni_obj)
         self.university_list.sort(key=lambda x: (len(x.rank), x.rank))  # Sort University !!
         self.university_list_sorted = [uni for uni in self.university_list]
+        for idx, uni in enumerate(self.university_list):
+            uni.id = idx
 
         # create uni buttons
         for i, uni in enumerate(self.university_list):
@@ -547,12 +570,19 @@ class UniSystem(Tk.Frame):
 
     def add_new_university(self, uni):
         print "back add button now"
+        uni.id = len(self.university_list)
         self.university_list.append(uni)
         self.university_list_sorted = sorted(self.university_list, key=lambda x: (len(x.rank), x.rank))
 
         button = Tk.Button(self.uni_list_frame, text=uni.name,
                            command=lambda idx=uni.id: self.popup_edit_uni_window(idx))
         button.pack(fill=Tk.X)
+        '''for element in self.uni_list_frame.winfo_children():
+            element.destroy()
+        for i, uni in enumerate(self.university_list):
+            button = Tk.Button(self.uni_list_frame, text=uni.name,
+                               command=lambda idx=i: self.popup_edit_uni_window(idx))
+            button.pack(fill=Tk.X)'''
 
     def popup_edit_uni_window(self, idx):
         print "Edit uni id: ", idx
@@ -627,7 +657,6 @@ class UniSystem(Tk.Frame):
 
         # Filter types for display
         self.candidates = []
-        keyword = self.search_entry.get().encode('utf-8')
         for uni in self.university_list_sorted:
             if ((self.type_985_value.get() and uni.type_985)
                     or (self.type_211_value.get() and uni.type_211)
@@ -636,28 +665,24 @@ class UniSystem(Tk.Frame):
                     or (self.type_others_value.get() and uni.type_985 == 0 and uni.type_211 == 0 and
                         uni.type_lead_uni == 0 and uni.type_lead_sub == 0)
                     or self.type_all_value.get()):
-                if keyword:
-                    if keyword in uni.name.encode('utf-8'):
-                        self.candidates.append(uni)
-                else:
-                    self.candidates.append(uni)
+                self.candidates.append(uni)
+        print "Side of candidates: ", len(self.candidates)
         self.candidates.sort(key=lambda x: (len(x.rank), x.rank))
 
         # Display table content
         print "update display based on class and types"
         for i, h in enumerate(self.headers):
             self.tree.heading(i, text=h)
-            self.tree.column(i, width=Table_Header_Size[i])
-            #self.tree.column(i, width=tkFont.Font().measure(h))
+            self.tree.column(i, width=tkFont.Font().measure(h))
 
         for can_id, candidate in enumerate(self.candidates):
-            row_info = [can_id+1]
+            row_info = [can_id]
             row_info.extend(candidate.get_info_list(class_choice))
             self.tree.insert("", "end", value=row_info)
-            '''for ix, val in enumerate(row_info):
+            for ix, val in enumerate(row_info):
                 col_w = tkFont.Font().measure(val)
                 if self.tree.column(ix, width=None) < col_w:
-                    self.tree.column(ix, width=col_w)'''
+                    self.tree.column(ix, width=col_w)
 
     def refresh_table(self):
         print " clear table first "
@@ -665,14 +690,10 @@ class UniSystem(Tk.Frame):
 
         self.fill_table()
 
-    def popup_details(self, event):
-        print self.tree.item(self.tree.focus())
-        uni_name = self.tree.item(self.tree.focus())['values'][2]
-        print uni_name
-
-        for can in self.candidates:
-            if can.name == uni_name:
-                tkMessageBox.showinfo(can.name, can.get_info_str_details())
+    def popup_details(self, idx):
+        print "Pop up for ", idx
+        tkMessageBox.showinfo(self.university_list_sorted[idx].name,
+                              self.university_list_sorted[idx].get_info_str_details())
 
     def export_csv(self):
         print "write candidates to csv"
@@ -702,7 +723,8 @@ class UniSystem(Tk.Frame):
 class University:
 
     def __init__(self, name="", code="", rank="10000", type_985=0, type_211=0, type_lead_uni=0, type_lead_sub=0,
-                 details="", plans={}):
+                 details="", plans={}, id=-1):
+        self.id = id  # unique, never change during program. but no need to save to log
         self.name = name   # string
         self.code = code   # string
         self.rank = rank   # string. default is 10000.

@@ -5,12 +5,10 @@ import sys
 import pickle
 import hashlib
 import shutil
-import time
 from datetime import date
 import tkMessageBox
 import Tkinter as Tk
-import ttk
-import tkFont
+from tkintertable import TableCanvas, TableModel
 
 Login_Title = "登录"
 Key_In_Password = "输入密码: "
@@ -22,28 +20,23 @@ Wrong_Password = "密码错误"
 Confirm = "确认"
 Cancel = "取消"
 Add_New_University = "添加学校"
-Search_Keyword = "搜索关键词"
 Class_Science = "理科"
 Class_Art = "文科"
 Type_All = "全选"
 Type_985 = "985工程"
 Type_211 = "211工程"
-Type_Leading_Uni = "一流大学"
-Type_Leading_Sub = "一流学科"
+Type_Leading_Uni = "一流高校"
+Type_Leading_Sub = "一流专业"
 Type_Others = "其他"
 Refresh = "刷新"
-Export = "导出文件"
 Uni_Name = "大学"
 Uni_Code = "代码"
 Uni_Rank = "排名"
 Uni_Types = "类别"
 Uni_Details = "详情"
 Uni_Plans = "招生计划"
-Table_Header = ["序号", "排名", "大学", "代码", "类别"]
-#Table_Header_Size = [4, 5, 18, 5, 22, 5, 5, 8, 5, 5, 8, 5, 5, 8, 5, 5, 8]
-Table_Header_Size = [30, 40, 130, 40, 155, 45, 45, 60, 45, 45, 60, 45, 45, 60, 45, 45, 60]
-Table_Pre_Batch = "提前批"
-Table_First_Batch = "第一批"
+Table_Header = ["排名", "大学", "代码", "类别"]
+Table_Header_Size = [8, 25, 8, 30, 8, 8, 8, 8, 8, 8]
 Table_Accumulate = "累计"
 Table_Details = "详情"
 Detailed_String_Format = """                                                                                    
@@ -53,9 +46,8 @@ Detailed_String_Format = """
 详情: {} \n
 招生计划:
 """
-Plan_Format = "{}年： 理科提前批{}人，第一批{}人； 文科提前批{}人，第一批{}人\n"
-Plan_Note = "计划格式：每一行为这一年的计划。 年份，理科提前批和第一批人数，文科提前批和第一批人数用空格隔开。" \
-            "\n例如：2018 10 20 5 9"
+Plan_Format = "{}年： 理科{}人， 文科{}人\n"
+Plan_Note = "计划格式：每一行为这一年的计划。 年份，理科人数，文科人数用空格隔开。例如：2018 100 90"
 
 Default_Data_Dir = "default"
 Custom_Data_Dir = "custom/data"
@@ -219,7 +211,7 @@ class UniEditPopUp(Tk.Frame):
 
         self.edit_popup = Tk.Toplevel()
         self.edit_popup.wm_title(self.university.name)
-        self.edit_popup.geometry("700x650")
+        self.edit_popup.geometry("700x600")
         self.edit_popup.attributes('-topmost', 'true')  # show at top lvl
         self.edit_popup.grab_set()                      # disable other windows
 
@@ -291,7 +283,7 @@ class UniEditPopUp(Tk.Frame):
         self.label_plan_note.pack()
 
         self.frame_buttons = Tk.Frame(self.frame)
-        self.frame_buttons.pack(side=Tk.TOP, fill=Tk.X, padx=60, pady=10)
+        self.frame_buttons.pack(side=Tk.TOP, fill=Tk.X, padx=60, pady=20)
         self.button_submit = Tk.Button(self.frame_buttons, text=Confirm, command=self.confirm_edit, width=20)
         self.button_submit.pack(side=Tk.LEFT)
         self.button_cancel = Tk.Button(self.frame_buttons, text=Cancel, command=self.cancel_edit, width=20)
@@ -309,13 +301,12 @@ class UniEditPopUp(Tk.Frame):
         print self.entry_details.get(1.0, Tk.END).strip()
         print self.entry_plans.get(1.0, Tk.END).strip()'''
 
-        self.university.name = self.entry_name.get().strip()
-        self.university.code = self.entry_code.get().strip()
-        self.university.rank = self.entry_rank.get().strip()
-        '''if self.entry_rank.get().isdigit():
+        self.university.name = self.entry_name.get()
+        self.university.code = self.entry_code.get()
+        if self.entry_rank.get().isdigit():
             self.university.rank = int(self.entry_rank.get())
         else:
-            self.university.rank = float(self.entry_rank.get())'''
+            self.university.rank = float(self.entry_rank.get())
         self.university.type_985 = self.type_985_value.get()
         self.university.type_211 = self.type_211_value.get()
         self.university.type_lead_uni = self.type_lead_uni_value.get()
@@ -327,8 +318,6 @@ class UniEditPopUp(Tk.Frame):
 
         if self.new_university:
             self.parent.add_new_university(self.university)
-        else:
-            self.parent.update_uni_order_after_edit()
 
         self.edit_popup.grab_release()
         self.edit_popup.destroy()
@@ -350,7 +339,7 @@ class UniSystem(Tk.Frame):
         self.uni_page = Tk.Frame(self.parent, bd=2, relief=Tk.RIDGE)
         self.uni_page.pack(side=Tk.LEFT, fill=Tk.Y, ipadx=20, ipady=20)
         self.display_page = Tk.Frame(self.parent)
-        self.display_page.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True, padx=10, pady=20)
+        self.display_page.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True, padx=20, pady=20)
 
         # uni_page = uni_content + management page
         self.uni_content = Tk.Frame(self.uni_page)
@@ -360,7 +349,7 @@ class UniSystem(Tk.Frame):
 
         # uni_content page
         self.uni_canvas = Tk.Canvas(self.uni_content)
-        self.uni_canvas.config(width=130)
+        self.uni_canvas.config(width=110)
         self.uni_canvas.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
         self.uni_scrollbar = Tk.Scrollbar(self.uni_content, command=self.uni_canvas.yview)
         self.uni_scrollbar.pack(side=Tk.LEFT, fill=Tk.Y)
@@ -374,8 +363,7 @@ class UniSystem(Tk.Frame):
         self.uni_list_frame.bind("<Configure>", self._reset_scrollregion)
         self.uni_canvas.create_window((0, 0), window=self.uni_list_frame, anchor='nw')
         # add sth
-        self.university_list = []   # sorted at start, remain the same after edit and add new
-        self.university_list_sorted = []  # always sorted in rank
+        self.university_list = []
         self.candidates = []
         self.load_universities()
 
@@ -384,19 +372,11 @@ class UniSystem(Tk.Frame):
         self.uni_add_button.pack(pady=20)
 
         # -------------------------------------
-        # display page = search + filters + table
-        self.search_frame = Tk.Frame(self.display_page)
-        self.search_frame.pack(side=Tk.TOP, fill=Tk.X)
+        # display page = filters + table
         self.display_filters = Tk.Frame(self.display_page)
         self.display_filters.pack(side=Tk.TOP, fill=Tk.X)
         self.display_table = Tk.Frame(self.display_page, bd=1, relief=Tk.RIDGE)
         self.display_table.pack(side=Tk.TOP, fill=Tk.BOTH, expand=True)
-
-        # search frame
-        self.search_label = Tk.Label(self.search_frame, text=Search_Keyword)
-        self.search_label.pack(side=Tk.LEFT, padx=(25, 0))
-        self.search_entry = Tk.Entry(self.search_frame)
-        self.search_entry.pack(side=Tk.LEFT, fill=Tk.X, expand=True, padx=(20, 40))
 
         # display filters: two class and 4 types + refresh button
         self.filter_content = Tk.Frame(self.display_filters)
@@ -409,11 +389,9 @@ class UniSystem(Tk.Frame):
         self.filter_types = Tk.Frame(self.filter_content)
         self.filter_types.pack(side=Tk.TOP, fill=Tk.X)
 
-        self.filter_refresh_button = Tk.Button(self.filter_button_frame, text=Refresh, width=10,
+        self.filter_refresh_button = Tk.Button(self.filter_button_frame, text=Refresh, width=20,
                                                command=self.refresh_table)
-        self.filter_refresh_button.pack(side=Tk.LEFT)
-        self.export_button = Tk.Button(self.filter_button_frame, text=Export, width=10, command=self.export_csv)
-        self.export_button.pack(side=Tk.LEFT, padx=30)
+        self.filter_refresh_button.pack(padx=30)
 
         # filter class
         self.class_value = Tk.IntVar()
@@ -465,29 +443,21 @@ class UniSystem(Tk.Frame):
         self.type_others_checkButton.pack(side=Tk.LEFT, padx=10, pady=(2, 10))
 
         # display table
+        self.table_canvas = Tk.Canvas(self.display_table)
+        self.table_canvas.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
+        self.table_scrollbar = Tk.Scrollbar(self.display_table, command=self.table_canvas.yview)
+        self.table_scrollbar.pack(side=Tk.LEFT, fill=Tk.BOTH)
+        self.table_canvas.configure(yscrollcommand=self.table_scrollbar.set)
+
+        self.table_canvas.bind('<Configure>', self._on_frame_configure_table)
+        self.table_canvas.bind('<Enter>', self._bound_to_mousewheel_table)
+        self.table_canvas.bind('<Leave>', self._unbound_to_mousewheel_table)
+
+        self.table_list = Tk.Frame(self.table_canvas)
+        self.table_list.bind("<Configure>", self._reset_scrollregion_table)
+        self.table_canvas.create_window((0, 0), window=self.table_list, anchor='nw')
+
         self.current_year = date.today().year
-        self.headers = [Table_Header[0], Table_Header[1], Table_Header[2], Table_Header[3], Table_Header[4],
-                        Table_Pre_Batch, Table_First_Batch, str(self.current_year-3) + Table_Accumulate,
-                        Table_Pre_Batch, Table_First_Batch, str(self.current_year-2) + Table_Accumulate,
-                        Table_Pre_Batch, Table_First_Batch, str(self.current_year-1) + Table_Accumulate,
-                        Table_Pre_Batch, Table_First_Batch, str(self.current_year) + Table_Accumulate]
-        self.tree = ttk.Treeview(columns=range(len(self.headers)), show="headings")
-        self.tree_vsb = ttk.Scrollbar(orient="vertical", command=self.tree.yview)
-        self.tree_hsb = ttk.Scrollbar(orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=self.tree_vsb.set,
-                            xscrollcommand=self.tree_hsb.set)
-
-        self.tree.grid(column=0, row=0, sticky='nsew', in_=self.display_table)
-        self.tree_vsb.grid(column=1, row=0, sticky='ns', in_=self.display_table)
-        self.tree_hsb.grid(column=0, row=1, sticky='ew', in_=self.display_table)
-
-        self.display_table.grid_columnconfigure(0, weight=1)
-        self.display_table.grid_rowconfigure(0, weight=1)
-
-        self.tree.bind('<Enter>', self._bound_to_mousewheel_table)
-        self.tree.bind('<Leave>', self._unbound_to_mousewheel_table)
-        self.tree.bind('<Double-1>', self.popup_details)
-
         self.fill_table()
 
     def _on_frame_configure(self, event):
@@ -506,16 +476,19 @@ class UniSystem(Tk.Frame):
         self.uni_canvas.configure(scrollregion=self.uni_canvas.bbox("all"))
 
     def _on_frame_configure_table(self, event):
-        self.tree.configure(scrollregion=self.tree)
+        self.table_canvas.configure(scrollregion=self.table_canvas.bbox("all"))
 
     def _bound_to_mousewheel_table(self, event):
-        self.tree.bind_all("<MouseWheel>", self._on_mouse_wheel_table)
+        self.table_canvas.bind_all("<MouseWheel>", self._on_mouse_wheel_table)
 
     def _unbound_to_mousewheel_table(self, event):
-        self.tree.unbind_all("<MouseWheel>")
+        self.table_canvas.unbind_all("<MouseWheel>")
 
     def _on_mouse_wheel_table(self, event):
-        self.tree.yview_scroll(-1*(event.delta/120), "units")
+        self.table_canvas.yview_scroll(-1*(event.delta/120), "units")
+
+    def _reset_scrollregion_table(self, event):
+        self.table_canvas.configure(scrollregion=self.table_canvas.bbox("all"))
 
     def load_universities(self):
         print "load data"
@@ -532,8 +505,7 @@ class UniSystem(Tk.Frame):
             uni_obj = University()
             uni_obj.load_from_log(os.path.join(log_dir, f))
             self.university_list.append(uni_obj)
-        self.university_list.sort(key=lambda x: (len(x.rank), x.rank))  # Sort University !!
-        self.university_list_sorted = [uni for uni in self.university_list]
+        self.university_list.sort(key=lambda x: x.rank)  # Sort University !!
 
         # create uni buttons
         for i, uni in enumerate(self.university_list):
@@ -548,19 +520,19 @@ class UniSystem(Tk.Frame):
     def add_new_university(self, uni):
         print "back add button now"
         self.university_list.append(uni)
-        self.university_list_sorted = sorted(self.university_list, key=lambda x: (len(x.rank), x.rank))
-
-        button = Tk.Button(self.uni_list_frame, text=uni.name,
-                           command=lambda idx=uni.id: self.popup_edit_uni_window(idx))
-        button.pack(fill=Tk.X)
+        #button = Tk.Button(self.uni_list_frame, text=uni.name,
+         #                  command=lambda idx=(len(self.university_list)-1): self.popup_edit_uni_window(idx))
+        #button.pack(fill=Tk.X)
+        for element in self.uni_list_frame.winfo_children():
+            element.destroy()
+        for i, uni in enumerate(self.university_list):
+            button = Tk.Button(self.uni_list_frame, text=uni.name,
+                               command=lambda idx=i: self.popup_edit_uni_window(idx))
+            button.pack(fill=Tk.X)
 
     def popup_edit_uni_window(self, idx):
         print "Edit uni id: ", idx
         UniEditPopUp(self, self.university_list, idx)
-
-    def update_uni_order_after_edit(self):
-        # reset list with new ranks if changed
-        self.university_list_sorted.sort(key=lambda x: (len(x.rank), x.rank))
 
     def update_class(self):
         print "Update class choice"
@@ -602,33 +574,28 @@ class UniSystem(Tk.Frame):
     def fill_table(self):
         # Update accumulated plans
         yr_current = date.today().year
-        class_choice = self.class_value.get()
-        yr_accu = [0, 0]  # one for pre-batch, one for first-batch
+        yr_accu = [0, 0]
         yr_last_1_accu = [0, 0]
         yr_last_2_accu = [0, 0]
-        yr_last_3_accu = [0, 0]
-        for uni in self.university_list_sorted:
+        for uni in self.university_list:
             if yr_current in uni.plans:
-                yr_accu[0] += uni.plans[yr_current][0 + 2*class_choice]
-                yr_accu[1] += uni.plans[yr_current][1 + 2*class_choice]
-                uni.update_accumulated_plan(yr_current, class_choice, yr_accu[0]+yr_accu[1])
+                yr_accu[Class_Science_Index] += uni.plans[yr_current][Class_Science_Index]
+                yr_accu[Class_Art_Index] += uni.plans[yr_current][Class_Art_Index]
+                uni.update_accumulated_plan(yr_current, yr_accu[Class_Science_Index], yr_accu[Class_Art_Index])
             if (yr_current-1) in uni.plans:
-                yr_last_1_accu[0] += uni.plans[yr_current-1][0 + 2*class_choice]
-                yr_last_1_accu[1] += uni.plans[yr_current-1][1 + 2*class_choice]
-                uni.update_accumulated_plan(yr_current-1, class_choice, yr_last_1_accu[0]+yr_last_1_accu[1])
+                yr_last_1_accu[Class_Science_Index] += uni.plans[yr_current-1][Class_Science_Index]
+                yr_last_1_accu[Class_Art_Index] += uni.plans[yr_current-1][Class_Art_Index]
+                uni.update_accumulated_plan(yr_current-1, yr_last_1_accu[Class_Science_Index],
+                                            yr_last_1_accu[Class_Art_Index])
             if (yr_current-2) in uni.plans:
-                yr_last_2_accu[0] += uni.plans[yr_current-2][0 + 2*class_choice]
-                yr_last_2_accu[1] += uni.plans[yr_current-2][1 + 2*class_choice]
-                uni.update_accumulated_plan(yr_current-2, class_choice, yr_last_2_accu[0]+yr_last_2_accu[1])
-            if (yr_current-3) in uni.plans:
-                yr_last_3_accu[0] += uni.plans[yr_current-3][0 + 2*class_choice]
-                yr_last_3_accu[1] += uni.plans[yr_current-3][1 + 2*class_choice]
-                uni.update_accumulated_plan(yr_current-3, class_choice, yr_last_3_accu[0]+yr_last_3_accu[1])
+                yr_last_2_accu[Class_Science_Index] += uni.plans[yr_current-2][Class_Science_Index]
+                yr_last_2_accu[Class_Art_Index] += uni.plans[yr_current-2][Class_Art_Index]
+                uni.update_accumulated_plan(yr_current-2, yr_last_2_accu[Class_Science_Index],
+                                            yr_last_2_accu[Class_Art_Index])
 
         # Filter types for display
         self.candidates = []
-        keyword = self.search_entry.get().encode('utf-8')
-        for uni in self.university_list_sorted:
+        for uni in self.university_list:
             if ((self.type_985_value.get() and uni.type_985)
                     or (self.type_211_value.get() and uni.type_211)
                     or (self.type_lead_uni_value.get() and uni.type_lead_uni)
@@ -636,91 +603,94 @@ class UniSystem(Tk.Frame):
                     or (self.type_others_value.get() and uni.type_985 == 0 and uni.type_211 == 0 and
                         uni.type_lead_uni == 0 and uni.type_lead_sub == 0)
                     or self.type_all_value.get()):
-                if keyword:
-                    if keyword in uni.name.encode('utf-8'):
-                        self.candidates.append(uni)
-                else:
-                    self.candidates.append(uni)
-        self.candidates.sort(key=lambda x: (len(x.rank), x.rank))
+                self.candidates.append(uni)
+        print "Side of candidates: ", len(self.candidates)
+        self.candidates.sort(key=lambda x: x.rank)
 
-        # Display table content
         print "update display based on class and types"
-        for i, h in enumerate(self.headers):
-            self.tree.heading(i, text=h)
-            self.tree.column(i, width=Table_Header_Size[i])
-            #self.tree.column(i, width=tkFont.Font().measure(h))
+        data = {'rec1': {'col1': 99.88, 'col2': 108.79, 'label': 'rec1'},
+                'rec2': {'col1': 99.88, 'col2': 108.79, 'label': 'rec2'}}
+        model = TableModel(rows=20, columns=10)
+        table = TableCanvas(self.table_list, model=model)
+        table.pack(fill=Tk.BOTH, expand=True)
+        table.cellbackgr = "white"
+        table.selectedcolor = 'green'
+        table.createTableFrame()
 
-        for can_id, candidate in enumerate(self.candidates):
-            row_info = [can_id+1]
-            row_info.extend(candidate.get_info_list(class_choice))
-            self.tree.insert("", "end", value=row_info)
-            '''for ix, val in enumerate(row_info):
-                col_w = tkFont.Font().measure(val)
-                if self.tree.column(ix, width=None) < col_w:
-                    self.tree.column(ix, width=col_w)'''
+        model = table.model
+        model.importDict(data)  # can import from a dictionary to populate model
+        table.redrawTable()
+        '''rows = len(self.candidates) + 1
+        columns = 11
+        for r in xrange(rows):
+            if r == 0:
+                col = 0
+                for t in Table_Header:
+                    e = Tk.Entry(self.table_list, width=Table_Header_Size[col])
+                    e.insert(Tk.END, t)
+                    e.config(state='readonly')
+                    e.grid(row=r, column=col)
+                    col += 1
+                for i in xrange(self.current_year-2, self.current_year+1):
+                    yr = Tk.Entry(self.table_list, width=Table_Header_Size[col])
+                    yr.insert(Tk.END, i)
+                    yr.config(state='readonly')
+                    yr.grid(row=r, column=col)
+                    col += 1
+
+                    yra = Tk.Entry(self.table_list, width=Table_Header_Size[col])
+                    yra.insert(Tk.END, str(i) + Table_Accumulate)
+                    yra.config(state='readonly')
+                    yra.grid(row=r, column=col)
+                    col += 1
+                continue
+
+            row_info = self.candidates[r-1].get_info_list(self.class_value.get())
+            for c in xrange(columns):
+                if c == columns - 1:
+                    b = Tk.Button(self.table_list, text=Table_Details,
+                                  command=lambda idx=(r-1): self.popup_details(idx))
+                    b.grid(row=r, column=c, pady=1)
+                    break
+                e = Tk.Entry(self.table_list, width=Table_Header_Size[c])
+                e.insert(Tk.END, row_info[c])
+                e.config(state='readonly')
+                e.grid(row=r, column=c)'''
 
     def refresh_table(self):
         print " clear table first "
-        self.tree.delete(*self.tree.get_children())
+        for element in self.table_list.winfo_children():
+            element.destroy()
 
         self.fill_table()
 
-    def popup_details(self, event):
-        print self.tree.item(self.tree.focus())
-        uni_name = self.tree.item(self.tree.focus())['values'][2]
-        print uni_name
-
-        for can in self.candidates:
-            if can.name == uni_name:
-                tkMessageBox.showinfo(can.name, can.get_info_str_details())
-
-    def export_csv(self):
-        print "write candidates to csv"
-        output_str = ""
-        for r in xrange(len(self.candidates) + 1):
-            if r == 0:
-                output_str += ",".join(Table_Header)
-                for i in xrange(self.current_year - 3, self.current_year + 1):
-                    output_str += ",{}".format(i)
-                    output_str += ",{}".format(str(i) + Table_Accumulate)
-            else:
-                row_info = self.candidates[r - 1].get_info_list(self.class_value.get())
-                new_row_info = []
-                for v in row_info:
-                    if isinstance(v, unicode):
-                        new_row_info.append(v.encode('utf-8'))
-                    else:
-                        new_row_info.append(str(v))
-                output_str += ",".join(new_row_info)
-            output_str += "\n"
-
-        log_name = time.strftime("%Y-%m-%d-%H-%M-%S", time.gmtime()) + ".csv"
-        with open(log_name, "w") as f:
-            f.write(output_str)
+    def popup_details(self, idx):
+        print "Pop up for ", idx
+        tkMessageBox.showinfo(self.university_list[idx].name, self.university_list[idx].get_info_str_details())
 
 
 class University:
 
-    def __init__(self, name="", code="", rank="10000", type_985=0, type_211=0, type_lead_uni=0, type_lead_sub=0,
+    def __init__(self, name="", code="", rank=999, type_985=0, type_211=0, type_lead_uni=0, type_lead_sub=0,
                  details="", plans={}):
         self.name = name   # string
         self.code = code   # string
-        self.rank = rank   # string. default is 10000.
+        self.rank = rank   # int or float
         self.type_985 = type_985    # int
         self.type_211 = type_211    # int
         self.type_lead_uni = type_lead_uni    # int
         self.type_lead_sub = type_lead_sub    # int
         self.details = details    # string (with new line char)
-        self.plans = plans   # dic{yr:[science-pre, science_1st, art-pre, art-1st]} all int
+        self.plans = plans   # dic{yr:[science, art]} all int
         self.accumulated_plans = {}
 
     def get_plan_string(self):
-        values = [[key, value[0], value[1], value[2], value[3]] for key, value in self.plans.iteritems()]
+        values = [[key, value[0], value[1]] for key, value in self.plans.iteritems()]
         values.sort(key=lambda x: x[0])
 
         plan_string = ""
         for v in values:
-            plan_string += "{} {} {} {} {}\n".format(v[0], v[1], v[2], v[3], v[4])
+            plan_string += "{} {} {}\n".format(v[0], v[1], v[2])
 
         return plan_string
 
@@ -731,17 +701,11 @@ class University:
         if plan_string:
             for line in plan_string.split("\n"):
                 values = line.split()
-                self.plans[int(values[0])] = [int(values[1]), int(values[2]), int(values[3]), int(values[4])]
+                self.plans[int(values[0])] = [int(values[1]), int(values[2])]
 
-    def update_accumulated_plan(self, year, class_choice, number):
+    def update_accumulated_plan(self, year, science, art):
         print "update accumulate plan"
-        if year in self.accumulated_plans:
-            self.accumulated_plans[year][class_choice] = number
-        else:
-            if class_choice == Class_Science_Index:
-                self.accumulated_plans[year] = [number, 0]
-            else:
-                self.accumulated_plans[year] = [0, number]
+        self.accumulated_plans[year] = [science, art]
 
     def write_to_dist(self, log_folder):
         print "Write to log"
@@ -756,8 +720,7 @@ class University:
         output["details"] = self.details
         output["plans"] = self.plans
 
-        log_file = os.path.join(log_folder.decode('GB2312').encode('utf-8'),
-                                "{}.pickle".format(self.name.encode('utf-8')))
+        log_file = os.path.join(log_folder, "{}.pickle".format(self.name.encode('utf-8')))
         log_file = unicode(log_file, "utf8")
         with open(log_file, 'wb') as f:
             pickle.dump(output, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -767,7 +730,7 @@ class University:
             saved_dic = pickle.load(f)
             self.name = saved_dic["name"]
             self.code = saved_dic["code"]
-            self.rank = str(saved_dic["rank"])
+            self.rank = saved_dic["rank"]
             self.type_985 = saved_dic["type_985"]
             self.type_211 = saved_dic["type_211"]
             self.type_lead_uni = saved_dic["type_lead_uni"]
@@ -776,113 +739,77 @@ class University:
             self.plans = saved_dic["plans"]
 
     def get_info_list(self, class_type):
-        type_str = self.get_type_string()
+        type_str = ""
+        if self.type_985:
+            type_str += Type_985
+        if self.type_211:
+            type_str += ", " + Type_211
+        if self.type_lead_uni:
+            type_str += ", " + Type_Leading_Uni
+        if self.type_lead_sub:
+            type_str += ", " + Type_Leading_Sub
 
         yr_current = date.today().year
         yr_before = yr_current - 1
         yr_before_last = yr_current - 2
-        yr_before_last_last = yr_current - 3
 
-        yr_current_value = [0, 0]
-        yr_before_value = [0, 0]
-        yr_before_last_value = [0, 0]
-        yr_before_last_last_value = [0, 0]
+        yr_current_value = 0
+        yr_before_value = 0
+        yr_before_last_value = 0
         if yr_current in self.plans:
-            for i in xrange(2):
-                yr_current_value[i] = self.plans[yr_current][i + 2*class_type]
+            yr_current_value = self.plans[yr_current][class_type]
         if yr_before in self.plans:
-            for i in xrange(2):
-                yr_before_value[i] = self.plans[yr_before][i + 2*class_type]
+            yr_before_value = self.plans[yr_before][class_type]
         if yr_before_last in self.plans:
-            for i in xrange(2):
-                yr_before_last_value[i] = self.plans[yr_before_last][i + 2*class_type]
-        if yr_before_last_last in self.plans:
-            for i in xrange(2):
-                yr_before_last_last_value[i] = self.plans[yr_before_last_last][i + 2*class_type]
+            yr_before_last_value = self.plans[yr_before_last][class_type]
 
         yr_current_value_accum = 0
         yr_before_value_accum = 0
         yr_before_last_value_accum = 0
-        yr_before_last_last_value_accum = 0
         if yr_current in self.accumulated_plans:
             yr_current_value_accum = self.accumulated_plans[yr_current][class_type]
         if yr_before in self.accumulated_plans:
             yr_before_value_accum = self.accumulated_plans[yr_before][class_type]
         if yr_before_last in self.accumulated_plans:
             yr_before_last_value_accum = self.accumulated_plans[yr_before_last][class_type]
-        if yr_before_last_last in self.accumulated_plans:
-            yr_before_last_last_value_accum = self.accumulated_plans[yr_before_last_last][class_type]
 
-        info = [self.rank, self.name, self.code, type_str,
-                yr_before_last_last_value[0], yr_before_last_last_value[1], yr_before_last_last_value_accum,
-                yr_before_last_value[0], yr_before_last_value[1], yr_before_last_value_accum,
-                yr_before_value[0], yr_before_value[1], yr_before_value_accum,
-                yr_current_value[0], yr_current_value[1], yr_current_value_accum]
+        info = [self.rank, self.name, self.code, type_str, yr_before_last_value, yr_before_last_value_accum,
+                yr_before_value, yr_before_value_accum, yr_current_value, yr_current_value_accum]
 
         return info
 
     def get_info_str_details(self):
-        type_str = self.get_type_string()
+        type_str = ""
+        if self.type_985:
+            type_str += Type_985
+        if self.type_211:
+            type_str += ", " + Type_211
+        if self.type_lead_uni:
+            type_str += ", " + Type_Leading_Uni
+        if self.type_lead_sub:
+            type_str += ", " + Type_Leading_Sub
 
         info_str = Detailed_String_Format.format(self.name.encode('utf-8'), self.code, self.rank, type_str,
                                                  self.details.encode('utf-8'))
 
-        values = [[key, value[0], value[1], value[2], value[3]] for key, value in self.plans.iteritems()]
+        values = [[key, value[0], value[1]] for key, value in self.plans.iteritems()]
         values.sort(key=lambda x: x[0])
         for v in values:
-            info_str += Plan_Format.format(v[0], v[1], v[2], v[3], v[4])
+            info_str += Plan_Format.format(v[0], v[1], v[2])
 
         return info_str
-
-    def get_type_string(self):
-        elements = []
-        if self.type_985:
-            elements.append(Type_985)
-        if self.type_211:
-            elements.append(Type_211)
-        if self.type_lead_uni:
-            elements.append(Type_Leading_Uni)
-        if self.type_lead_sub and not self.type_lead_uni:
-            elements.append(Type_Leading_Sub)
-        return ";".join(elements)
 
 
 def create_default_uni_files():
     print "create default files"
-    names_log = './files/2018-63.csv'
+    names_log = './files/University-names'
+
     with open(names_log, 'r') as f:
-        lines = [n.strip() for n in f.readlines()]
+        names = [n.strip() for n in f.readlines()]
 
-    u_list = []
-    for line in lines:
-        values = line.split(',')
-        print values
-        uni = University(rank=values[0].strip(), name=values[1].strip().decode('utf-8'), code=values[2].strip())
-        u_list.append(uni)
-
-    # append those not in 2018-63
-    all_log = './files/University-names'
-    with open(all_log, 'r') as f:
-        names = [n.strip().decode('utf-8') for n in f.readlines()]
-
-    for name in names:
-        # check whether alrdy exist.
-        exist = 0
-        for alr_u in u_list:
-            if alr_u.name == name:
-                exist = 1
-                break
-        if not exist:
-            uni = University(name=name)
-            u_list.append(uni)
-    print u_list[1].name
-    print names[0]
-    print u_list[1].name == names[0]
-    print len(u_list)
-
-    # write out
     output_dir = os.path.join(os.getcwd(), Default_Data_Dir)
-    for uni in u_list:
+    for idx, name in enumerate(names):
+        uni = University(name=name, rank=idx+1)
         uni.write_to_dist(output_dir)
 
     sys.exit(0)
@@ -891,7 +818,7 @@ def create_default_uni_files():
 if __name__ == "__main__":
     # create_default_uni_files()
     root = Tk.Tk()
-    root.geometry("1240x650")
+    root.geometry("1180x650")
     root.title("University System")
     UniSystem(root).pack(side="top", fill="both", expand=True)
     root.mainloop()
