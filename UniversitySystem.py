@@ -7,10 +7,9 @@ import hashlib
 import shutil
 import time
 from datetime import date
-import tkMessageBox
 import Tkinter as Tk
 import ttk
-import tkFont
+from xpinyin import Pinyin
 
 Login_Title = "登录"
 Key_In_Password = "输入密码: "
@@ -40,7 +39,6 @@ Uni_Types = "类别"
 Uni_Details = "详情"
 Uni_Plans = "招生计划"
 Table_Header = ["序号", "排名", "大学", "代码", "类别"]
-#Table_Header_Size = [4, 5, 18, 5, 22, 5, 5, 8, 5, 5, 8, 5, 5, 8, 5, 5, 8]
 Table_Header_Size = [30, 40, 130, 40, 155, 45, 45, 60, 45, 45, 60, 45, 45, 60, 45, 45, 60]
 Table_Pre_Batch = "提前批"
 Table_First_Batch = "第一批"
@@ -48,9 +46,9 @@ Table_Accumulate = "累计"
 Table_Details = "详情"
 Detailed_String_Format = """                                                                                    
 {}  (代码 - {}) \n
-排名: {}
-类别: {}  
-详情: {} \n
+排名: {}\n
+类别: {}\n
+详情: {} \n\n
 招生计划:
 """
 Plan_Format = "{}年： 理科提前批{}人，第一批{}人； 文科提前批{}人，第一批{}人\n"
@@ -532,7 +530,7 @@ class UniSystem(Tk.Frame):
             uni_obj = University()
             uni_obj.load_from_log(os.path.join(log_dir, f))
             self.university_list.append(uni_obj)
-        self.university_list.sort(key=lambda x: (len(x.rank), x.rank))  # Sort University !!
+        self.university_list.sort(key=lambda x: x.pinyin)  # Sort University !!
         self.university_list_sorted = [uni for uni in self.university_list]
 
         # create uni buttons
@@ -670,9 +668,28 @@ class UniSystem(Tk.Frame):
         uni_name = self.tree.item(self.tree.focus())['values'][2]
         print uni_name
 
-        for can in self.candidates:
-            if can.name == uni_name:
-                tkMessageBox.showinfo(can.name, can.get_info_str_details())
+        for candidate in self.candidates:
+            if candidate.name == uni_name:
+                details_popup = Tk.Toplevel()
+                details_popup.wm_title(candidate.name)
+                details_popup.geometry("500x500")
+
+                self.details_canvas = Tk.Canvas(details_popup)
+                self.details_canvas.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True)
+                details_scrollbar = Tk.Scrollbar(details_popup, command=self.details_canvas.yview)
+                details_scrollbar.pack(side=Tk.LEFT, fill=Tk.Y)
+                self.details_canvas.config(yscrollcommand=details_scrollbar.set)
+                self.details_canvas.bind("<Configure>", self.detail_popup_scrollbar)
+
+                details_frame = Tk.Frame(self.details_canvas)
+                details_frame.bind("<Configure>", self.detail_popup_scrollbar)
+                self.details_canvas.create_window((0, 0), window=details_frame, anchor='nw')
+                details_text = Tk.Label(details_frame, width=70, wraplength=400, justify=Tk.LEFT,
+                                        text=candidate.get_info_str_details(), anchor='w')
+                details_text.pack(side=Tk.LEFT, fill=Tk.BOTH, expand=True, anchor='w', pady=25, padx=40)
+
+    def detail_popup_scrollbar(self, event):
+        self.details_canvas.configure(scrollregion=self.details_canvas.bbox("all"))
 
     def export_csv(self):
         print "write candidates to csv"
@@ -702,7 +719,7 @@ class UniSystem(Tk.Frame):
 class University:
 
     def __init__(self, name="", code="", rank="10000", type_985=0, type_211=0, type_lead_uni=0, type_lead_sub=0,
-                 details="", plans={}):
+                 details="", plans={}, pinyin=""):
         self.name = name   # string
         self.code = code   # string
         self.rank = rank   # string. default is 10000.
@@ -713,6 +730,7 @@ class University:
         self.details = details    # string (with new line char)
         self.plans = plans   # dic{yr:[science-pre, science_1st, art-pre, art-1st]} all int
         self.accumulated_plans = {}
+        self.pinyin = ""  # no need to save to log.
 
     def get_plan_string(self):
         values = [[key, value[0], value[1], value[2], value[3]] for key, value in self.plans.iteritems()]
@@ -774,6 +792,8 @@ class University:
             self.type_lead_sub = saved_dic["type_lead_sub"]
             self.details = saved_dic["details"]
             self.plans = saved_dic["plans"]
+            p = Pinyin()
+            self.pinyin = p.get_pinyin(self.name).encode("utf-8") # make a string for sorting
 
     def get_info_list(self, class_type):
         type_str = self.get_type_string()
